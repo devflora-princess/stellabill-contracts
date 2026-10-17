@@ -175,80 +175,6 @@ pub mod admin_api;
 /// Billing statements: append-only ledger of charges per subscription.
 pub mod statements;
 
-#[cfg(test)]
-mod admin_remove_accepted_token_tests {
-    use crate::*;
-    use soroban_sdk::{testutils::Address as _, Address, Env};
-
-    fn setup(env: &Env) -> (Address, Address, Address) {
-        let contract_id = env.register_contract(None, SubscriptionVault);
-        let client = SubscriptionVaultClient::new(env, &contract_id);
-        let admin = Address::generate(env);
-        let token = Address::generate(env);
-        client.initialize(&admin);
-        (contract_id, admin, token)
-    }
-
-    #[test]
-    fn remove_accepted_token_success() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (contract_id, admin, token) = setup(&env);
-        let client = SubscriptionVaultClient::new(&env, &contract_id);
-
-        client.add_accepted_token(&admin, &token);
-        assert!(client.is_accepted_token(&token));
-
-        client.remove_accepted_token(&admin, &token);
-        assert!(!client.is_accepted_token(&token));
-    }
-
-    #[test]
-    fn remove_accepted_token_unauthorized() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (contract_id, admin, token) = setup(&env);
-        let client = SubscriptionVaultClient::new(&env, &contract_id);
-        let attacker = Address::generate(&env);
-
-        client.add_accepted_token(&admin, &token);
-
-        let result = client.try_remove_accepted_token(&attacker, &token);
-        assert!(result.is_err());
-        // State must be unchanged after rejected operation.
-        assert!(client.is_accepted_token(&token));
-    }
-
-    #[test]
-    fn remove_accepted_token_not_present() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (contract_id, admin, token) = setup(&env);
-        let client = SubscriptionVaultClient::new(&env, &contract_id);
-
-        // Removing a token that was never added should be rejected and leave state unchanged.
-        let result = client.try_remove_accepted_token(&admin, &token);
-        assert!(result.is_err());
-        assert!(!client.is_accepted_token(&token));
-    }
-
-    #[test]
-    fn remove_accepted_token_twice_rejected() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (contract_id, admin, token) = setup(&env);
-        let client = SubscriptionVaultClient::new(&env, &contract_id);
-
-        client.add_accepted_token(&admin, &token);
-        client.remove_accepted_token(&admin, &token);
-        assert!(!client.is_accepted_token(&token));
-
-        let result = client.try_remove_accepted_token(&admin, &token);
-        assert!(result.is_err());
-        assert!(!client.is_accepted_token(&token));
-    }
-}
-
 
 /// Accounting: tracks total tokens accounted for across all subscriptions.
 pub mod accounting {
@@ -3594,6 +3520,8 @@ mod test_treasury_split;
 mod test_admin_treasury_change;
 #[cfg(test)]
 mod test_operator;
+#[cfg(test)]
+mod test_remove_accepted_token;
 
 #[cfg(test)]
 mod revoke_merchant_adversarial_tests {
